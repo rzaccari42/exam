@@ -6,7 +6,7 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/19 18:23:11 by razaccar          #+#    #+#             */
-/*   Updated: 2024/11/21 18:53:24 by razaccar         ###   ########.fr       */
+/*   Updated: 2024/11/22 18:23:32 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,11 +17,14 @@
 
 #define BUFFER_SIZE 1
 
+
 size_t ft_strlen(char *str)
 {	
-	size_t i = 0;
+	size_t i;
+
 	if (!str)
 		return (0);
+	i = 0;
 	while (str[i])
 		i++;
 	return (i);
@@ -29,77 +32,87 @@ size_t ft_strlen(char *str)
 
 char	*ft_strjoin(char *s1, char *s2)
 {
-	size_t i = 0;
+	size_t i;
 	size_t s1len;
 	size_t s2len;
-	char	*str;
 
+	i = 0;
 	s1len = ft_strlen(s1);
 	s2len = ft_strlen(s2);
-	str = realloc(s1, s1len + s2len  + 1);
+	s1 = realloc(s1, s1len + s2len  + 1);
+	s1[s1len + s2len] = 0;
 	while (*s2)
-	{
-		str[s1len + i] = *s2;
-		i++;
-		s2++;
-	}
-	str[s1len + s2len] = 0;
-	return (str);
+		s1[s1len + (i++)] = *(s2++);
+	return (s1);
 }
 
-char	*get_input(char *input, char *buffer, int *stop)
+char	*get_input(char *line, char *buffer, int *stop)
 {
 	size_t	read_len;
 
 	while (1)
 	{
-		if (input && strchr(input, '\n'))
+		if (line && strchr(line, '\n'))
+		{
+			*(strchr(line, '\n') + 1) = 0;
 			break ;
+		}
 		read_len = read(0, buffer, BUFFER_SIZE);
-		buffer[read_len] = 0;
 		if (read_len == 0)
 		{
 			*stop = 1;
 			break ;
 		}
-		input = ft_strjoin(input, buffer);
+		buffer[read_len] = 0;
+		line = ft_strjoin(line, buffer);
 	}
-	return (input);
+	return (line);
+}
+
+void	print_filtered(char *line, char *arg)
+{
+	size_t	i;
+	size_t	n;
+	size_t	arglen;
+	
+	i = 0;
+	arglen = ft_strlen(arg);
+	while (i < ft_strlen(line))
+	{
+		if (arglen > 0 && !strncmp(line + i, arg, arglen))
+		{
+			n = arglen;
+			i += n;
+			while (n--)
+				printf("*");
+
+		}
+		else
+			printf("%c", line[i++]);
+	}
+
 }
 
 int	main(int argc, char **argv)
 {
-	size_t	arglen;
-	char	_buffer[BUFFER_SIZE + 1];
+	char	buffer[BUFFER_SIZE + 1];
 	int	stop;
-	char	*buffer;
-	buffer = NULL;
-	(void)argc;
-	arglen = ft_strlen(argv[1]);
+	char	*line;
+
+	if (argc == 1)
+		argv[1] = "";
 	stop = 0;
+	line = NULL;
 	while (1)
 	{
-		buffer = get_input(buffer, _buffer, &stop);
-		if (stop)
-			break;
-		size_t i = 0;
-		while (i < ft_strlen(buffer))
+		line = get_input(line, buffer, &stop);
+		if (!stop)
 		{
-			if (strncmp(buffer + i, argv[1], arglen) == 0)
-			{
-				size_t n = arglen;
-				while (n--)
-					printf("*");
-				i += arglen;
-			}
-			else
-			{
-				printf("%c", buffer[i]);
-				i++;
-			}
-
+			print_filtered(line, argv[1]);
+			free(line);
+			line = NULL;
+			continue ;
 		}
-		free(buffer);
-		buffer = NULL;
+		break ;
 	}
 }
