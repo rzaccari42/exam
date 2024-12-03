@@ -6,7 +6,7 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/19 18:23:11 by razaccar          #+#    #+#             */
-/*   Updated: 2024/11/28 15:43:42 by razaccar         ###   ########.fr       */
+/*   Updated: 2024/12/02 17:25:38 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,7 +69,6 @@ char	*get_input(char *line, char *buffer, int *eof)
 			*(strchr(line, '\n') + 1) = 0;
 			break ;
 		}
-
 		readlen = read(0, buffer, BUFFER_SIZE);
 	}
 	if (readlen == 0)
@@ -87,7 +86,7 @@ void	print_filtered(char *line, char *arg)
 	arglen = ft_strlen(arg);
 	while (i < ft_strlen(line))
 	{
-		if (arglen > 0 && !strncmp(line + i, arg, arglen))
+		if (!strncmp(line + i, arg, arglen))
 		{
 			n = arglen;
 			i += n;
@@ -97,7 +96,6 @@ void	print_filtered(char *line, char *arg)
 		else
 			printf("%c", line[i++]);
 	}
-
 }
 
 int	main(int argc, char **argv)
@@ -108,14 +106,10 @@ int	main(int argc, char **argv)
 
 	line = NULL;
 	eof = 0;
-	if (argc < 2)
-	{
-		line = get_input(line, buffer, &eof);
-		if (line)
-			free(line);
-		printf("filter: first arg may not be empty\n");
+	if (argc != 2)
 		return (1);
-	}
+	if (argv[1][0] == 0)
+		return (1);
 	while (1)
 	{
 		line = get_input(line, buffer, &eof);

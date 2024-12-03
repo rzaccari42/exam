@@ -1,6 +1,6 @@
-CFLAGS = -Wall -Wextra -Werror -g
+CFLAGS = -Wall -Wextra -Werror
 
-filter:
+re:
+	rm -f filter
+	make filter
 
-test: filter
-	valgrind ./filter fuck42
