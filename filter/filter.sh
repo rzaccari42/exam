@@ -3,7 +3,8 @@
 [ -z "$1" ]
 
 arg=$(echo "$1" | sed 's/\([][(){}\^.*+?$|]\)/\\\1/g')
-echo arg: "$arg"
+echo "escaped arg : [$arg]"
 stared=$(echo "$1" | sed -E 's/./*/g')
-sed -E "s/$arg/$stared/"
+echo "stared arg : [$stared]\n"
+sed -E "s/$arg/$stared/g"
 
