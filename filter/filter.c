@@ -6,7 +6,7 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/19 18:23:11 by razaccar          #+#    #+#             */
-/*   Updated: 2024/12/10 17:06:03 by razaccar         ###   ########.fr       */
+/*   Updated: 2024/12/10 17:09:04 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -151,11 +151,11 @@ char	*ft_strchr(char *s, int c)
 	while (s[i])
 	{
 		if (s[i] == (char)c)
-			return ((char *)(s + i));
+			return (s + i);
 		i++;
 	}
 	if (s[i] == (char)c)
-		return ((char *)(s + i));
+		return (s + i);
 	return (NULL);
 }
 
