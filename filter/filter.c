@@ -6,7 +6,7 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/19 18:23:11 by razaccar          #+#    #+#             */
-/*   Updated: 2024/12/05 22:43:30 by razaccar         ###   ########.fr       */
+/*   Updated: 2024/12/10 17:06:03 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,8 +31,8 @@ void	filter(char *arg);
 char	*get_input(int *eof);
 void	print_filtered(char *input, char *arg);
 char	*ft_strjoin(char *s1, char *s2);
-int		ft_strncmp(const char *s1, const char *s2, size_t n);
-char	*ft_strchr(const char *s, int c);
+int		ft_strncmp(char *s1, char *s2, size_t n);
+char	*ft_strchr(char *s, int c);
 size_t	ft_strlen(char *str);
 
 int	main(int argc, char **argv)
@@ -131,7 +131,7 @@ char	*ft_strjoin(char *s1, char *s2)
 	return (s1);
 }
 
-int	ft_strncmp(const char *s1, const char *s2, size_t n)
+int	ft_strncmp(char *s1, char *s2, size_t n)
 {
 	size_t	i;
 
@@ -143,7 +143,7 @@ int	ft_strncmp(const char *s1, const char *s2, size_t n)
 	return (((unsigned char)s1[i]) - ((unsigned char)s2[i]));
 }
 
-char	*ft_strchr(const char *s, int c)
+char	*ft_strchr(char *s, int c)
 {
 	int	i;
 
