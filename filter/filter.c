@@ -5,28 +5,130 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/12/10 21:30:56 by razaccar          #+#    #+#             */
-/*   Updated: 2025/01/22 21:52:07 by razaccar         ###   ########.fr       */
+/*   Created: 2024/11/19 18:23:11 by razaccar          #+#    #+#             */
+/*   Updated: 2024/12/10 17:09:04 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <unistd.h>
+/**
+ * If, as said in the exam subject, we have to reproduce the bash script but in 
+ * a strict way; we maybe have to handle \n as argument in a specific way 
+ * because sed can't use this as a part of its command 
+ * => (because of the s/search/replace/ syntax)
+ * Here it works because the \n character is catched when parsing the input read
+ * from the stdin stream.
+ **/
+
 #include <stdio.h>
-#include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define BUFFER_SIZE 10
 
-int	ft_strlen(char *str)
+void	filter(char *arg);
+char	*get_input(int *eof);
+void	print_filtered(char *input, char *arg);
+char	*ft_strjoin(char *s1, char *s2);
+int		ft_strncmp(char *s1, char *s2, size_t n);
+char	*ft_strchr(char *s, int c);
+size_t	ft_strlen(char *str);
+
+int	main(int argc, char **argv)
 {
-	int	i;
+	if (argc != 2)
+		return (1);
+	if (argv[1][0] == 0)
+		return (1);
+	filter(argv[1]);
+	return (0);
+}
+
+void	filter(char *arg)
+{
+	char	*input;
+	int		eof;
+
+	input = NULL;
+	eof = 0;
+	while (1)
+	{
+		input = get_input(&eof);
+		print_filtered(input, arg);
+		free(input);
+		if (eof)
+			break ;
+	}
+}
+
+char	*get_input(int *eof)
+{
+	char	buffer[BUFFER_SIZE + 1];
+	char	*input;
+	size_t	readlen;
+
+	input = NULL;
+	readlen = read(0, buffer, BUFFER_SIZE);
+	if (readlen < 0)
+	{
+		perror("Error: ");
+		return (NULL);
+	}
+	while (readlen > 0)
+	{
+		buffer[readlen] = 0;
+		input = ft_strjoin(input, buffer);
+		if (ft_strchr(input, '\n'))
+			break ;
+		readlen = read(0, buffer, BUFFER_SIZE);
+	}
+	if (readlen == 0)
+		*eof = 1;
+	return (input);
+}
+
+void	print_filtered(char *input, char *arg)
+{
+	size_t	arglen;
+	size_t	n;
+	size_t	i;
+	
+	i = 0;
+	arglen = ft_strlen(arg);
+	while (i < ft_strlen(input))
+	{
+		if (!ft_strncmp(input + i, arg, arglen))
+		{
+			n = arglen;
+			i += n;
+			while (n--)
+				printf("*");
+		}
+		else
+			printf("%c", input[i++]);
+	}
+}
+
+char	*ft_strjoin(char *s1, char *s2)
+{
+	size_t s1len;
+	size_t s2len;
+	size_t i;
 
 	i = 0;
-	if (!str)
-		return (0);
-	while (str[i])
-		i++;
-	return (i);
+	s1len = ft_strlen(s1);
+	s2len = ft_strlen(s2);
+	s1 = realloc(s1, s1len + s2len + 1);
+	if (!s1)
+	{
+		perror("Error: ");
+		return (NULL);
+	}
+	while (*s2)
+		s1[s1len + (i++)] = *(s2++);
+	s1[s1len + s2len] = 0;
+	return (s1);
 }
 
 int	ft_strncmp(char *s1, char *s2, size_t n)
@@ -41,54 +143,30 @@ int	ft_strncmp(char *s1, char *s2, size_t n)
 	return (((unsigned char)s1[i]) - ((unsigned char)s2[i]));
 }
 
-int	main(int argc, char **argv)
+char	*ft_strchr(char *s, int c)
 {
-	char	buffer[BUFFER_SIZE + 1];
-	char	*input;
-	int		readlen;
-	int		arglen;
-	int		read_i;
-	int		i;
+	int	i;
 
-	read_i = 1;
-	input = NULL;
-	readlen = read(0, buffer, BUFFER_SIZE);
-	if (readlen < 0)
-	{
-		perror("Error: ");
-		return (1);
-	}
-	while (readlen > 0)
-	{
-		buffer[BUFFER_SIZE] = 0;
-		input = realloc(input, (read_i++ * BUFFER_SIZE) + 1);
-		if (!input)
-		{
-			perror("Error: ");
-			return (1);
-		}
-		i = 0;
-		while (buffer[i])
-		{
-			input[ft_strlen(input) + i] = buffer[i];
-			i++;
-		}
-		input[ft_strlen(input) + i] = 0;
-		readlen = read(0, buffer, BUFFER_SIZE);
-	}
 	i = 0;
-	printf("%s\n", input);
-	while (i < ft_strlen(input))
+	while (s[i])
 	{
-		if (!ft_strncmp(input + i, argv[1], ft_strlen(argv[1])))
-		{
-			arglen = ft_strlen(argv[1]);
-			i += arglen;
-			while (arglen--)
-				printf("*");				
-		}
-		else
-			printf("%c", input[i++]);
+		if (s[i] == (char)c)
+			return (s + i);
+		i++;
 	}
-	return (0);
+	if (s[i] == (char)c)
+		return (s + i);
+	return (NULL);
+}
+
+size_t ft_strlen(char *str)
+{	
+	size_t i;
+
+	if (!str)
+		return (0);
+	i = 0;
+	while (str[i])
+		i++;
+	return (i);
 }
