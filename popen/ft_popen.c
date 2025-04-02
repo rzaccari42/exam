@@ -6,7 +6,7 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/02 08:02:26 by razaccar          #+#    #+#             */
-/*   Updated: 2025/04/02 16:10:57 by razaccar         ###   ########.fr       */
+/*   Updated: 2025/04/02 16:41:29 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,9 +23,7 @@ In case of error or invalid parameter the function must return -1.
 
 Hint: Do not leak file descriptors! */
 
-#include <stdlib.h>
 #include <unistd.h>
-#include <stdio.h>
 
 int	ft_popen(const char *file, char *const argv[], char type)
 {
@@ -40,17 +38,11 @@ int	ft_popen(const char *file, char *const argv[], char type)
 	if (pid == 0)
 	{
 		if (type == 'r')
-		{
 			dup2(pipefd[1], STDOUT_FILENO);
-			close(pipefd[0]);
-			close(pipefd[1]);
-		}		
 		if (type == 'w')
-		{
 			dup2(pipefd[0], STDIN_FILENO);
-			close(pipefd[0]);
-			close(pipefd[1]);
-		}
+		close(pipefd[0]);
+		close(pipefd[1]);
 		execvp(file, argv);
 	}
 	else
@@ -67,18 +59,4 @@ int	ft_popen(const char *file, char *const argv[], char type)
 		}
 	}
 	return (-1);
-}
-
-int main()
-{
-	int fd = ft_popen("ls", (char *const[]){"ls", NULL}, 'r');
-	char *line;
-	size_t	n;
-
-	line = NULL;
-	n = 0;
-	while(getline(&line, &n, fdopen(fd, "r")) > -1)
-	{
-		printf("%s\n", line);
-	}
 }
