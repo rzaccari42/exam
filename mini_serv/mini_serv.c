@@ -6,10 +6,11 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/20 16:22:43 by razaccar          #+#    #+#             */
-/*   Updated: 2026/03/10 14:41:49 by razaccar         ###   ########.fr       */
+/*   Updated: 2026/04/16 05:01:53 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -23,127 +24,168 @@
 
 typedef struct client {
     int     id;
-    int     sockfd;
-    char*   buf;
+    char    *recv_buf;
+    char    *send_buf;
 } client_t;
 
-void panic(char* err)
+void panic(char *err)
 {
     write(STDERR_FILENO, err, strlen(err));
     exit(1); 
 }
 
-
-void broadcast(client_t* clients, char* message)  
+void print_address(uint32_t ip, uint16_t port)
 {
-    while (clients) {
-        (*clients).buf = message;
-        clients++;
+    uint8_t ip_parts[4];
+    ip_parts[0] = ip >> 24;
+    ip_parts[1] = ip >> 16;
+    ip_parts[2] = ip >> 8;
+    ip_parts[3] = ip >> 0;
+    printf("IP:   %d.%d.%d.%d\n", ip_parts[3], ip_parts[2], ip_parts[1], ip_parts[0]);
+    printf("PORT: %d\n", ntohs(port));
+}
+
+int extract_message(char **buf, char **msg)
+{
+	char	*newbuf;
+	int	i;
+
+	*msg = 0;
+	if (*buf == 0)
+		return (0);
+	i = 0;
+	while ((*buf)[i]) {
+		if ((*buf)[i] == '\n') {
+			newbuf = calloc(1, sizeof(*newbuf) * (strlen(*buf + i + 1) + 1));
+			if (newbuf == 0)
+				return (-1);
+			strcpy(newbuf, *buf + i + 1);
+			*msg = *buf;
+			(*msg)[i + 1] = 0;
+			*buf = newbuf;
+			return (1);
+		}
+		i++;
+	}
+	return (0);
+}
+
+void broadcast(client_t *clients, char *msg, int maxfd)
+{
+    for (int fd = 0; fd <= maxfd; ++fd) {
+        if (clients[fd].id != 0) {
+            if (clients[fd].send_buf) {
+                char *temp = malloc(strlen(clients[fd].send_buf) + strlen(msg) + 1);
+                strcpy(temp, clients[fd].send_buf);
+                strcat(temp, msg);
+                free(clients[fd].send_buf);
+                clients[fd].send_buf = temp;
+            }
+            else {
+                clients[fd].send_buf = malloc(strlen(msg) + 1);
+                strcpy(clients[fd].send_buf, msg);
+            }
+        }
     }
 }
 
-int main(int ac, char** av)
+int main(int ac, char **av)
 {
-    if (ac != 2)
-        panic("Wrong number of arguments\n");
+    if (ac != 2) panic("Wrong number of arguments\n");
+    uint16_t arg = atoi(av[1]);
+
+    uint32_t ip = (1 << 24) | (0 << 16) | (0 << 8) | 127;
+    uint16_t port = ((arg >> 8) & 0x00FF) | ((arg << 8) & 0xFF00);
+    struct sockaddr_in server = {.sin_family = AF_INET, .sin_addr.s_addr = ip, .sin_port = port};
 
     int listen_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (listen_sock == -1)
         panic("Fatal error (socket)\n");
-
-    uint16_t arg = atoi(av[1]);
-
-    uint32_t addr = (1 << 24) | (0 << 16) | (0 << 8) | 127;
-    uint16_t port = ((arg >> 8) & 0x00FF) | ((arg << 8) & 0xFF00);
-    
-    uint8_t ip_parts[4];
-    ip_parts[0] = addr >> 24;
-    ip_parts[1] = addr >> 16;
-    ip_parts[2] = addr >> 8;
-    ip_parts[3] = addr >> 0;
-    printf("IP:   %d.%d.%d.%d\n", ip_parts[3], ip_parts[2], ip_parts[1], ip_parts[0]);
-    printf("PORT: %d\n", ntohs(port));
-
-    struct sockaddr_in server, client;
-	bzero(&server, sizeof (struct sockaddr_in)); 
-	server.sin_family = AF_INET; 
-	server.sin_addr.s_addr = addr;
-	server.sin_port = port; 
-
     if ((bind(listen_sock, (const struct sockaddr*)&server, sizeof(struct sockaddr))) != 0)
         panic("Fatal error (bind)\n");
 	if (listen(listen_sock, 10) != 0)
         panic("Fatal error (listen)\n");
 
-    client_t* clients = calloc(FD_SETSIZE, sizeof(client_t));
-
-    int n_sock = 1; 
-    fd_set sock_set, read_set, write_set;
-    FD_ZERO(&sock_set);
-    FD_ZERO(&read_set);
-    FD_ZERO(&write_set);
-    FD_SET(listen_sock, &sock_set);
-
-    struct timeval  tv;
-    tv.tv_sec = 1;
+    client_t clients[FD_SETSIZE] = {0};
+    int n_client = 1;
+    int maxfd = listen_sock; 
+    fd_set active, rset, wset;
+    FD_ZERO(&active);
+    FD_SET(listen_sock, &active);
 
     while (1) {
-        read_set = sock_set;
-        write_set = sock_set;
-        int ready = select(n_sock + 1, &read_set, &write_set, NULL, &tv);
-        switch (ready) {
-            case -1: panic("Fatal error (select)\n");
-            case 0:
-                printf("continue\n");
-            default:
-                if (FD_ISSET(listen_sock, &read_set)) {
-                    int fd = accept(listen_sock, NULL, NULL);
-                    if (fd == -1) panic("Fatal error\n");
-                    clients[n_sock].sockfd = fd;
-                    clients[n_sock].id = n_sock;
-                    n_sock += 1;
-                    FD_SET(fd, &sock_set);
-                    char* message = NULL;
-                    sprintf(message, "server: client %d just arrived\n", clients[n_sock].id);
-                    broadcast(clients, message);
+        FD_ZERO(&wset);
+        FD_ZERO(&rset);
+        rset = active;
+        
+        for (int fd = 0; fd <= maxfd; ++fd) {
+            if (FD_ISSET(fd, &active) && fd != listen_sock && clients[fd].send_buf)
+                FD_SET(fd, &wset);
+        }
+        
+        if (select(maxfd + 1, &rset, &wset, NULL, NULL) < 0)
+            panic("Fatal error (select)\n");
+
+        for (int fd = 0; fd <= maxfd; ++fd) {
+            if (FD_ISSET(fd, &rset)) {
+                if (fd == listen_sock) {
+                    int newfd = accept(listen_sock, NULL, NULL);
+                    if (newfd == -1) panic("Fatal error\n");
+                    FD_SET(newfd, &active);
+                    clients[newfd].id = n_client++;
+                    maxfd = newfd > maxfd ? newfd : maxfd;
+                    char *fmt = "server: client %d just arrived\n";
+                    char msg[(strlen(fmt) - 2) + FD_SETSIZE + 1];
+                    sprintf(msg, fmt, clients[newfd].id - 1);
+                    broadcast(clients, msg, maxfd);
                 }
-                for (int i = 0; i < n_sock; ++i) {
-                    client_t c = clients[i];
-                    char* message;
-                    if (FD_ISSET(c.sockfd, &read_set)) {
-                        char* line = malloc(11 * sizeof(char));
-                        ssize_t read_bytes = recv(c.sockfd, c.buf, 10, 0);
-                        if (!read_bytes) {
-                            sprintf(message, "server: client %d just left", c.id);
-                            broadcast(clients, message);
-                        }
-                        while (read_bytes > 0) {
-                            strcat(line, c.buf);
-                            read_bytes = recv(c.sockfd, c.buf, 10, 0);
-                        }
-                        sprintf(message, "client %d: %s", c.id, line);
-                        broadcast(clients, message);
-                        free(line);
-                        free(message);
+                else {
+                    client_t *c = &(clients[fd]);
+                    char buf[11];
+                    char *bytes;
+                    ssize_t read_bytes = recv(fd, buf, 10, 0);
+                    if (!read_bytes) {
+                        char *fmt = "server: client %d just left\n";
+                        char msg[(strlen(fmt) - 2) + FD_SETSIZE + 1];
+                        sprintf(msg, fmt, c->id + 1);
+                        FD_CLR(fd, &active);
+                        clients[fd].id = 0;
+                        if (clients[fd].recv_buf) free(clients[fd].recv_buf);
+                        if (clients[fd].send_buf) free(clients[fd].send_buf);
+                        clients[fd].send_buf = NULL;
+                        close(fd);
+                        broadcast(clients, msg, maxfd);
                     }
-                    if (FD_ISSET(c.sockfd, &write_set)) {
-                        send(c.sockfd, c.buf, strlen(c.buf), 0);
-                        free(c.buf);
+                    else {
+                        if (!c->recv_buf) c->recv_buf = calloc(11, sizeof(char));
+                        else c->recv_buf = realloc(c->recv_buf, strlen(c->recv_buf) + 11);
+                        buf[read_bytes] = 0;
+                        strcat(c->recv_buf, buf);
+                        int message = extract_message(&c->recv_buf, &bytes);
+                        if (message) {
+                            while (message) {
+                                char *fmt = "client %d: %s";
+                                char msg[(strlen(fmt) - 4) + strlen(bytes) + FD_SETSIZE + 1];
+                                sprintf(msg, fmt, c->id - 1, bytes);
+                                broadcast(clients, msg, maxfd);
+                                free(bytes);
+                                message = extract_message(&c->recv_buf, &bytes);
+                            }
+                            free(c->recv_buf);
+                            c->recv_buf = NULL;
+                        }
                     }
                 }
+            }
+        }
+		for (int fd = 0; fd <= maxfd; fd++) {
+            if (FD_ISSET(fd, &wset) && fd != listen_sock) {
+                if (!clients[fd].send_buf) continue;
+                if (send(fd, clients[fd].send_buf, strlen(clients[fd].send_buf), 0) > 0) {
+                    free(clients[fd].send_buf);
+                    clients[fd].send_buf = NULL;
+                }
+            }
         }
     }
-
 }
-
-// uint16_t htons(uint16_t n) 
-// {
-// }
-//
-// uint32_t htonl(uint32_t n)
-// {
-// }
-// 
-// void event_loop()
-// {
-// }
