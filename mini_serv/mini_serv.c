@@ -6,7 +6,7 @@
 /*   By: razaccar <razaccar@student.42lausanne.ch>  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/20 16:22:43 by razaccar          #+#    #+#             */
-/*   Updated: 2026/04/23 02:03:22 by razaccar         ###   ########.fr       */
+/*   Updated: 2026/04/23 17:44:04 by razaccar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,7 +68,7 @@ int extract_line(char **buf, char **msg)
 
 void broadcast(client_t *clients, char *msg)
 {
-    for (int i = 0; i <= n_clients; ++i) {
+    for (int i = 0; i < n_clients; ++i) {
         if (clients[i].id < 0) continue;
         if (clients[i].wbuf) {
             clients[i].wbuf = realloc(clients[i].wbuf, strlen(clients[i].wbuf) + strlen(msg) + 1);
@@ -90,8 +90,8 @@ void add_client(int c_sock)
     char *fmt = "server: client %d just arrived\n";
     char msg[(strlen(fmt) - 2) + 4 + 1];
     sprintf(msg, fmt, clients[n_clients].id);
-    broadcast(clients, msg);
     n_clients++;
+    broadcast(clients, msg);
 }
 
 void rem_client(client_t *c)
@@ -131,6 +131,10 @@ void on_readable(client_t *c)
                 free(line);
                 has_line = extract_line(&c->rbuf, &line);
             }
+            if (c->rbuf && !c->rbuf[0]) {
+                free(c->rbuf);
+                c->rbuf = NULL;
+            }
         }
     }
 }
@@ -147,6 +151,7 @@ void on_writable(client_t *c)
     else {
         char *newbuf = malloc(strlen(c->wbuf) - sent_bytes + 1);
         newbuf = strcpy(newbuf, c->wbuf + sent_bytes);
+        free(c->wbuf);
         c->wbuf = newbuf;
     }
 }
@@ -188,7 +193,7 @@ int main(int ac, char **av)
         FD_ZERO(&rset);
         rset = active;
 
-        for (int i = 0; i <= n_clients; ++i) {
+        for (int i = 0; i < n_clients; ++i) {
             if (clients[i].id < 0) continue;
             client_t *c = &(clients[i]);
             if (FD_ISSET(c->fd, &active) && c->fd != sock && c->wbuf)
@@ -202,12 +207,12 @@ int main(int ac, char **av)
             if (c_sock == -1) panic("Fatal error\n");
             add_client(c_sock);
         }
-        for (int i = 0; i <= n_clients; ++i) {
+        for (int i = 0; i < n_clients; ++i) {
             if (clients[i].id < 0) continue;
             if (FD_ISSET(clients[i].fd, &rset))
                 on_readable(&clients[i]);
         }
-		for (int i = 0; i <= n_clients; i++) {
+		for (int i = 0; i < n_clients; i++) {
             if (clients[i].id < 0) continue;
             if (FD_ISSET(clients[i].fd, &wset) && clients[i].fd != sock)
                 on_writable(&clients[i]);
